@@ -1,0 +1,584 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Veil Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kavoon&family=Merriweather+Sans:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one working column — import strip, run readout, then a dense click grid read left-to-right like a timeline */
+:root{
+  --bg:#eef0f6;          /* cool lavender-grey ground */
+  --panel:#ffffff;
+  --ink:#1d2033;
+  --muted:#5d6280;
+  --line:#d6d9e6;
+  --veil:#6a4fd8;        /* veil violet accent */
+  --veil-soft:#e6e0ff;
+  --hold:#1f8a5b; --hold-bg:#d7f2e4;
+  --break:#c23a3a; --break-bg:#f9dddd;
+  --off:#9aa0bb;
+  --f-display:"Kavoon","Merriweather Sans",Georgia,serif;
+  --f-body:"Merriweather Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-data:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141626; --panel:#1d2036; --ink:#e7e8f3; --muted:#a2a6c4; --line:#31355a;
+  --veil:#a995ff; --veil-soft:#2c2654;
+  --hold:#5fd39c; --hold-bg:#163a2b; --break:#ff8585; --break-bg:#45202a; --off:#6c7096;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141626; --panel:#1d2036; --ink:#e7e8f3; --muted:#a2a6c4; --line:#31355a;
+  --veil:#a995ff; --veil-soft:#2c2654;
+  --hold:#5fd39c; --hold-bg:#163a2b; --break:#ff8585; --break-bg:#45202a; --off:#6c7096;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:20px}
+
+header{display:flex;flex-direction:column;gap:4px}
+h1{font-family:var(--f-display);font-weight:400;font-size:2.4rem;line-height:1.1;margin:0;color:var(--veil);letter-spacing:.01em}
+.lede{margin:0;color:var(--muted);max-width:62ch;text-wrap:pretty}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.label{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+textarea{width:100%;min-height:84px;resize:vertical;font-family:var(--f-data);font-size:.75rem;line-height:1.4;
+  background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:10px;word-break:break-all}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+button,.filebtn{font:600 .85rem var(--f-body);border-radius:6px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+button.primary{background:var(--veil);border-color:var(--veil);color:var(--panel)}
+button:hover,.filebtn:hover{border-color:var(--veil)}
+button:focus-visible,.filebtn:focus-within,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--veil);outline-offset:2px}
+.filebtn input{position:absolute;opacity:0;width:1px;height:1px}
+.msg{font-size:.85rem;color:var(--muted)}
+.msg.err{color:var(--break)}
+.msg.ok{color:var(--hold)}
+
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.value{font-family:var(--f-data);font-size:1.05rem;overflow-wrap:anywhere}
+.example{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--veil-soft);color:var(--veil);border-radius:4px;padding:2px 7px;align-self:flex-start}
+.stepper{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.stepper input{width:9ch;flex:1 1 9ch;min-width:0;font-family:var(--f-data);font-size:1rem;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.stepper button{padding:6px 10px;font-family:var(--f-data)}
+.pill{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:.85rem;border-radius:99px;padding:3px 10px;align-self:flex-start}
+.pill.on{background:var(--hold-bg);color:var(--hold)}
+.pill.off{background:var(--break-bg);color:var(--break)}
+.pill.na{background:var(--veil-soft);color:var(--muted)}
+
+.ups{display:flex;flex-direction:column;gap:6px}
+.ups label{display:flex;align-items:center;gap:8px;font-size:.9rem;cursor:pointer}
+.ups input{accent-color:var(--veil);width:16px;height:16px}
+.ups .pct{margin-left:auto;font-family:var(--f-data);font-size:.8rem;color:var(--muted)}
+.resist{font-family:var(--f-data);font-weight:600;color:var(--veil);font-size:1.6rem;line-height:1}
+
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.stat{border-left:3px solid var(--line);padding-left:10px;display:flex;flex-direction:column;gap:2px}
+.stat.good{border-color:var(--hold)}
+.stat .big{font-family:var(--f-data);font-size:1.35rem;font-weight:600;font-variant-numeric:tabular-nums}
+
+.gridhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.legend{display:flex;gap:14px;font-size:.82rem;color:var(--muted);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+select{font:600 .85rem var(--f-body);padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.clicks{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:5px}
+.c{border-radius:5px;padding:5px 4px;text-align:center;font-family:var(--f-data);font-variant-numeric:tabular-nums;line-height:1.15;border:1px solid transparent}
+.c .o{font-size:.82rem;font-weight:600;display:block}
+.c .n{font-size:.62rem;opacity:.75;display:block}
+.c.h{background:var(--hold-bg);color:var(--hold);border-color:var(--hold)}
+.c.b{background:var(--break-bg);color:var(--break)}
+.c.first{box-shadow:0 0 0 2px var(--veil)}
+
+.numin{width:12ch;max-width:100%;font-family:var(--f-data);font-size:1rem;padding:6px 8px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.searchres{display:flex;flex-direction:column;gap:12px;min-width:0;overflow-x:auto}
+.best{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.best .big{font-family:var(--f-data);font-size:1.6rem;font-weight:600;color:var(--hold)}
+.top{border-collapse:collapse;font-size:.88rem;font-variant-numeric:tabular-nums;min-width:420px}
+.top th{text-align:left;font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:6px 14px 6px 0;border-bottom:1px solid var(--line)}
+.top td{font-family:var(--f-data);padding:6px 14px 6px 0;border-bottom:1px solid var(--line)}
+.top tr:first-child td:first-child{color:var(--hold);font-weight:600}
+.notes{font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:6px;max-width:72ch}
+.notes p{margin:0}
+code{font-family:var(--f-data);font-size:.85em}
+@media (prefers-reduced-motion:no-preference){.c{transition:background .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Veil Planner</h1>
+    <p class="lede">Paste your exported Cookie Clicker save to see which of your next big-cookie clicks the reinforced shimmering veil will survive.</p>
+	<p class="lede">Disclaimer: made with AI.</p>
+  </header>
+
+  <section class="panel" aria-labelledby="importLbl">
+    <div class="label" id="importLbl">Import save</div>
+    <textarea id="saveInput" placeholder="Options → Export save, then paste the code here" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="loadBtn" type="button">Load save</button>
+      <label class="filebtn">Open save file…<input type="file" id="fileInput" accept=".txt,text/plain"></label>
+      <span class="msg" id="loadMsg">Showing example data until you load a save.</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Current run">
+    <span class="example" id="exampleTag">Example data</span>
+    <div class="readout">
+      <div class="field">
+        <div class="label">Bakery · run seed</div>
+        <div class="value" id="bakery">—</div>
+      </div>
+      <div class="field">
+        <div class="label"><label for="clicksInput">Cookie clicks this ascension</label></div>
+        <div class="stepper">
+          <input type="number" id="clicksInput" min="0" step="1" inputmode="numeric">
+          <button type="button" data-step="1" title="I clicked once">+1</button>
+          <button type="button" data-step="10" title="I clicked 10 times">+10</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="label">Veil right now</div>
+        <span class="pill na" id="veilState">—</span>
+      </div>
+    </div>
+    <div class="readout">
+      <div class="field">
+        <div class="label">Veil upgrades</div>
+        <div class="ups" id="ups"></div>
+      </div>
+      <div class="field">
+        <div class="label">Chance not to break</div>
+        <div class="resist" id="resist">0%</div>
+        <div class="msg" id="resistNote"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="gridLbl">
+    <div class="summary" id="summary"></div>
+    <div class="gridhead">
+      <div class="label" id="gridLbl">Next clicks</div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--hold)"></i>Veil holds</span>
+        <span><i class="sw" style="background:var(--break-bg);border:1px solid var(--break)"></i>Veil breaks</span>
+        <label for="countSel">Show <select id="countSel"><option>50</option><option selected>100</option><option>250</option><option>500</option><option>1000</option></select></label>
+      </div>
+    </div>
+    <div class="clicks" id="clicks"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="searchLbl">
+    <div class="label" id="searchLbl">Find the longest hold streak</div>
+    <div class="row">
+      <label for="searchRange" class="msg">Search the next</label>
+      <input type="number" id="searchRange" class="numin" min="1" max="2000000000" step="1000" value="10000" inputmode="numeric">
+      <span class="msg">clicks</span>
+      <button class="primary" id="searchBtn" type="button">Search</button>
+      <button id="stopBtn" type="button" hidden>Stop</button>
+      <span class="msg" id="searchMsg"></span>
+    </div>
+    <div class="searchres" id="searchRes" hidden>
+      <div class="best">
+        <span class="big" id="bestLen"></span>
+        <span id="bestWhere"></span>
+      </div>
+      <table class="top">
+        <thead><tr><th>Streak</th><th>Starts at</th><th>Stats clicks</th><th>Clicks to make first</th></tr></thead>
+        <tbody id="topRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="notes">
+    <p><b>How it works.</b> When you click the big cookie, the game seeds its random number generator with <code>run seed + "/" + clicks so far</code> and rolls once against your veil's break resistance. The click count goes up after the roll, so the first square (+1) is the roll your very next click gets, and its # matches the cookie clicks your stats show right now.</p>
+    <p>Every click advances the count, even while the veil is off, so the plan stays valid after turning the veil back on. Clicks the game ignores for being too fast don't count. Golden cookie and reindeer clicks use a separate counter and aren't shown yet.</p>
+    <p>The run seed changes when you ascend, so re-import after each ascension.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* Seeded ARC4 RNG matching the seedrandom library the game uses (string seeds). */
+function makeSeededRandom(seed){
+  var width=256,chunks=6,digits=52,mask=width-1;
+  var startdenom=Math.pow(width,chunks),significance=Math.pow(2,digits),overflow=significance*2;
+  var key=[],str=seed+'',smear,j=0;
+  while(j<str.length){key[mask&j]=mask&((smear^=key[mask&j]*19)+str.charCodeAt(j++));}
+  var keylen=key.length;
+  if(!keylen) key=[keylen++];
+  var S=[],i=0,jj=0,t;
+  while(i<width) S[i]=i++;
+  for(i=0;i<width;i++){S[i]=S[jj=mask&(jj+key[i%keylen]+(t=S[i]))];S[jj]=t;}
+  var ii=0;jj=0;
+  function g(count){var r=0,a;while(count--){a=S[ii=mask&(ii+1)];r=r*width+S[mask&((S[ii]=S[jj=mask&(jj+a)])+(S[jj]=a))];}return r;}
+  g(width);
+  return function(){
+    var n=g(chunks),d=startdenom,x=0;
+    while(n<significance){n=(n+x)*width;d*=width;x=g(1);}
+    while(n>=overflow){n/=2;d/=2;x>>>=1;}
+    return (n+x)/d;
+  };
+}
+
+/* Upgrade ids (creation order in main.js, v2.058) */
+var IDS={veil:562,veilOff:563,veilOn:564};
+var UPGRADES=[
+  {key:'membrane',id:592,name:'Reinforced membrane'},
+  {key:'delicate',id:801,name:'Delicate touch'},
+  {key:'steadfast',id:802,name:'Steadfast murmur'},
+  {key:'glitter',id:803,name:'Glittering edge'}
+];
+
+var state={
+  example:true, bakery:'Example', seed:'qwmzr', clicks:1500,
+  hasVeil:true, veilActive:true, bornAgain:false,
+  owned:{membrane:true,delicate:true,steadfast:false,glitter:false}
+};
+
+var $=function(id){return document.getElementById(id);};
+
+function b64ToUtf8(s){
+  var bin=atob(s);
+  try{return decodeURIComponent(Array.prototype.map.call(bin,function(c){return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);}).join(''));}
+  catch(e){return bin;}
+}
+
+function parseSave(raw){
+  var s=(raw||'').trim();
+  if(!s) throw new Error('Paste a save code first.');
+  try{s=decodeURIComponent(s);}catch(e){s=unescape(s);}
+  s=s.split('!END!')[0].replace(/\s+/g,'');
+  var txt;
+  try{txt=b64ToUtf8(s);}catch(e){throw new Error('That doesn’t look like an exported save. Use Options → Export save and copy the whole code.');}
+  var parts=txt.split('|');
+  var version=parseFloat(parts[0]);
+  if(isNaN(version)||parts.length<7) throw new Error('That doesn’t look like an exported save. Use Options → Export save and copy the whole code.');
+  if(version<2.0046) throw new Error('This save is from version '+version+'. Load it in the current game once and export it again.');
+  var run=parts[2].split(';');
+  var misc=parts[4].split(';');
+  var bits=parts[6]||'';
+  var bought=function(id){return bits.charAt(id*2+1)==='1';};
+  var bornAgain=parseInt(misc[29]||'0',10)===1;
+  var owned={};
+  UPGRADES.forEach(function(u){owned[u.key]=bought(u.id);});
+  return {
+    example:false,
+    version:version,
+    bakery:run[3]||'Unnamed',
+    seed:run[4]||'',
+    clicks:parseInt(misc[2]||'0',10)||0,
+    hasVeil:bought(IDS.veil),
+    veilActive:bought(IDS.veilOff),
+    bornAgain:bornAgain,
+    owned:owned
+  };
+}
+
+function defense(){
+  if(state.bornAgain||!state.hasVeil||!state.owned.membrane) return 0;
+  var n=0;
+  UPGRADES.forEach(function(u){if(state.owned[u.key]) n+=0.1;});
+  return n;
+}
+
+function rollHolds(clickIndex,def){
+  if(def<=0) return false;
+  return makeSeededRandom(state.seed+'/'+clickIndex)()<def;
+}
+
+function renderUps(){
+  var box=$('ups');box.innerHTML='';
+  UPGRADES.forEach(function(u){
+    var lab=document.createElement('label');
+    var cb=document.createElement('input');
+    cb.type='checkbox';cb.id='up-'+u.key;cb.checked=!!state.owned[u.key];
+    cb.addEventListener('change',function(){state.owned[u.key]=cb.checked;render();});
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(u.name));
+    var p=document.createElement('span');p.className='pct';p.textContent='+10%';lab.appendChild(p);
+    box.appendChild(lab);
+  });
+}
+
+function render(){
+  $('exampleTag').hidden=!state.example;
+  $('bakery').textContent=state.bakery+' · '+state.seed;
+  if(document.activeElement!==$('clicksInput')) $('clicksInput').value=state.clicks;
+
+  var vs=$('veilState');
+  if(state.bornAgain){vs.className='pill na';vs.textContent='Born again run: veil unavailable';}
+  else if(!state.hasVeil){vs.className='pill na';vs.textContent='Shimmering veil not owned';}
+  else if(state.veilActive){vs.className='pill on';vs.textContent='On';}
+  else {vs.className='pill off';vs.textContent='Off (broken)';}
+
+  var def=defense();
+  $('resist').textContent=Math.round(def*100)+'%';
+  var note='';
+  if(state.hasVeil&&!state.bornAgain&&!state.owned.membrane&&(state.owned.delicate||state.owned.steadfast||state.owned.glitter))
+    note='Without Reinforced membrane the game never rolls, so every click breaks the veil.';
+  else if(def===0) note='Every click breaks the veil.';
+  $('resistNote').textContent=note;
+
+  var count=parseInt($('countSel').value,10)||100;
+  var grid=$('clicks');
+  var frag=document.createDocumentFragment();
+  var holds=0,firstHold=-1,streak=0,best=0,bestStart=-1,curStart=0;
+  for(var k=0;k<count;k++){
+    var idx=state.clicks+k;
+    var h=rollHolds(idx,def);
+    if(h){holds++;if(firstHold<0) firstHold=k;if(streak===0) curStart=k;streak++;if(streak>best){best=streak;bestStart=curStart;}}
+    else streak=0;
+    var c=document.createElement('div');
+    c.className='c '+(h?'h':'b')+(k===firstHold&&h?' first':'');
+    c.title='Roll at '+idx+' clicks in stats: veil '+(h?'holds':'breaks');
+    c.innerHTML='<span class="o">+'+(k+1)+'</span><span class="n">#'+idx+'</span>';
+    frag.appendChild(c);
+  }
+  grid.innerHTML='';grid.appendChild(frag);
+
+  var sum=$('summary');
+  var nextTxt=firstHold<0?'None in range':(firstHold===0?'Next click':'In '+(firstHold+1)+' clicks');
+  sum.innerHTML=
+    '<div class="stat'+(firstHold===0?' good':'')+'"><span class="label">Next hold</span><span class="big">'+nextTxt+'</span></div>'+
+    '<div class="stat"><span class="label">Holds in next '+count+'</span><span class="big">'+holds+' ('+Math.round(holds/count*100)+'%)</span></div>'+
+    '<div class="stat"><span class="label">Longest streak shown</span><span class="big">'+(best?best+' from +'+(bestStart+1):'0')+'</span></div>';
+  queueSearch();
+}
+
+/* Fast streak scan for one chunk of clicks.
+   Same results as makeSeededRandom, tuned for speed: typed arrays, the seed key built from
+   digit bytes instead of strings, a pre-expanded key updated incrementally, and the hold/break
+   decision usually settled by the first output byte. Runs inside Web Workers. */
+function scanRange(seed,start,count,def,topN){
+  var S=new Int32Array(256),ID=new Int32Array(256),EK=new Int32Array(256),lastKl=-1,dirty=true;
+  for(var q=0;q<256;q++) ID[q]=q;
+  var ps=seed+'/',P=ps.length,key=new Int32Array(320);
+  for(q=0;q<P;q++) key[q]=ps.charCodeAt(q)&255;
+  var ds=String(start),nd=ds.length,dig=new Int32Array(32);
+  for(q=0;q<nd;q++) dig[q]=ds.charCodeAt(q);
+  var thr=def*256,top=[],lead=-1,cur=0,curStart=0,holds=0;
+  function push(len,s){
+    var last=top[top.length-1];
+    if(top.length<topN||len>last.len){
+      top.push({len:len,start:s});
+      top.sort(function(a,b){return b.len-a.len||a.start-b.start;});
+      if(top.length>topN) top.pop();
+    }
+  }
+  for(var k=0;k<count;k++){
+    var kl=P+nd;
+    if(dirty||kl!==lastKl){for(q=0;q<nd;q++) key[P+q]=dig[q];for(q=0;q<256;q++) EK[q]=key[q%kl];lastKl=kl;dirty=false;}
+    else {var lv=dig[nd-1];for(q=kl-1;q<256;q+=kl) EK[q]=lv;}
+    S.set(ID);
+    var j=0,t,a,i;
+    for(i=0;i<256;i++){t=S[i];j=(j+EK[i]+t)&255;S[i]=S[j];S[j]=t;}
+    var ii=0;j=0;
+    for(i=0;i<256;i++){ii=(ii+1)&255;a=S[ii];j=(j+a)&255;S[ii]=S[j];S[j]=a;}
+    ii=(ii+1)&255;a=S[ii];j=(j+a)&255;S[ii]=S[j];S[j]=a;
+    var b0=S[(S[ii]+S[j])&255],hold;
+    if(b0+1<=thr) hold=true;
+    else if(b0>=thr) hold=false;
+    else {
+      var n=b0;
+      for(var c=0;c<5;c++){ii=(ii+1)&255;a=S[ii];j=(j+a)&255;S[ii]=S[j];S[j]=a;n=n*256+S[(S[ii]+S[j])&255];}
+      var d=281474976710656,x=0;
+      while(n<4503599627370496){n=(n+x)*256;d*=256;ii=(ii+1)&255;a=S[ii];j=(j+a)&255;S[ii]=S[j];S[j]=a;x=S[(S[ii]+S[j])&255];}
+      while(n>=9007199254740992){n/=2;d/=2;x>>>=1;}
+      hold=(n+x)/d<def;
+    }
+    if(hold){holds++;if(cur===0) curStart=k;cur++;}
+    else {
+      if(cur){if(curStart===0) lead=cur; else push(cur,curStart);cur=0;}
+      else if(lead<0) lead=0;
+    }
+    var p=nd-1;
+    if(dig[p]===57) dirty=true;
+    while(p>=0&&dig[p]===57){dig[p]=48;p--;}
+    if(p<0){for(q=nd;q>0;q--) dig[q]=dig[q-1];dig[0]=49;nd++;} else dig[p]++;
+  }
+  var all=false,trail=0;
+  if(cur){if(curStart===0){all=true;lead=cur;} else trail=cur;}
+  if(lead<0) lead=0;
+  return {lead:lead,trail:trail,all:all,top:top,holds:holds,count:count};
+}
+
+/* Longest-streak search: splits the range into chunks, scans them on every CPU core,
+   then stitches streaks that cross chunk borders back together. */
+var MAX_RANGE=2000000000,CHUNK=250000,TOP_N=5;
+var searchToken=0,searchTimer=null,workers=[],workerURL=null;
+function fmt(n){return n.toLocaleString('en-US');}
+function threadCount(){return Math.max(1,Math.min(16,navigator.hardwareConcurrency||4));}
+function getWorkers(){
+  if(workers.length) return workers;
+  try{
+    if(!workerURL){
+      var src=scanRange.toString()+'\nself.onmessage=function(e){var m=e.data;self.postMessage({job:m.job,token:m.token,r:scanRange(m.seed,m.start,m.count,m.def,m.topN)});};';
+      workerURL=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+    }
+    for(var w=0;w<threadCount();w++) workers.push(new Worker(workerURL));
+  }catch(e){workers=[];}
+  return workers;
+}
+function stopWorkers(){workers.forEach(function(w){w.terminate();});workers=[];}
+
+function mergeChunks(results){
+  var top=[],carry=0,carryStart=0,holds=0;
+  function push(len,s){
+    var last=top[top.length-1];
+    if(top.length<TOP_N||len>last.len){
+      top.push({len:len,start:s});
+      top.sort(function(a,b){return b.len-a.len||a.start-b.start;});
+      if(top.length>TOP_N) top.pop();
+    }
+  }
+  results.forEach(function(r){
+    holds+=r.holds;
+    if(r.all){if(!carry) carryStart=r.off;carry+=r.count;return;}
+    if(r.lead){if(!carry) carryStart=r.off;carry+=r.lead;}
+    if(carry){push(carry,carryStart);carry=0;}
+    r.top.forEach(function(t){push(t.len,r.off+t.start);});
+    if(r.trail){carry=r.trail;carryStart=r.off+r.count-r.trail;}
+  });
+  if(carry) push(carry,carryStart);
+  return {top:top,holds:holds};
+}
+
+function runSearch(){
+  var token=++searchToken;
+  stopWorkers();
+  var range=parseInt($('searchRange').value,10);
+  var msg=$('searchMsg');
+  if(isNaN(range)||range<1){msg.className='msg err';msg.textContent='Enter how many clicks to search, for example 10000.';return;}
+  if(range>MAX_RANGE){range=MAX_RANGE;$('searchRange').value=MAX_RANGE;}
+  var def=defense(),base=state.clicks,seed=state.seed;
+  if(def<=0){
+    $('searchRes').hidden=true;
+    msg.className='msg';msg.textContent='Every click breaks the veil with these upgrades, so there are no hold streaks.';
+    return;
+  }
+  var jobs=[];
+  for(var off=0;off<range;off+=CHUNK) jobs.push({off:off,count:Math.min(CHUNK,range-off)});
+  var results=new Array(jobs.length),next=0,done=0,scanned=0,t0=performance.now();
+  $('stopBtn').hidden=false;
+  msg.className='msg';msg.textContent='Searching…';
+
+  function progress(){
+    var secs=(performance.now()-t0)/1000,rate=scanned/Math.max(secs,0.001);
+    var eta=(range-scanned)/Math.max(rate,1);
+    msg.textContent='Searching… '+Math.floor(scanned/range*100)+'% · '+fmt(Math.round(rate))+' clicks/s'+(eta>1?' · about '+Math.ceil(eta)+' s left':'');
+  }
+  function finish(){
+    $('stopBtn').hidden=true;
+    var m=mergeChunks(results);
+    var secs=(performance.now()-t0)/1000;
+    showSearch(m.top,range,base,secs);
+  }
+  function onResult(job,r){
+    if(token!==searchToken||results[job]) return;
+    r.off=jobs[job].off;results[job]=r;done++;scanned+=r.count;
+    if(done===jobs.length){stopWorkers();finish();return;}
+    progress();
+  }
+
+  var ws=getWorkers();
+  if(ws.length){
+    ws.forEach(function(w){
+      w.onmessage=function(e){
+        var d=e.data;if(d.token!==token) return;
+        onResult(d.job,d.r);
+        if(next<jobs.length) send(w);
+      };
+      w.onerror=function(){if(token!==searchToken) return;stopWorkers();runLocal();};
+      if(next<jobs.length) send(w);
+    });
+  } else runLocal();
+
+  function send(w){var j=next++;w.postMessage({job:j,token:token,seed:seed,start:base+jobs[j].off,count:jobs[j].count,def:def,topN:TOP_N});}
+  // fallback when workers are unavailable: same scan on the page thread, in small slices
+  function runLocal(){
+    var pending=[];
+    for(var j=0;j<jobs.length;j++) if(!results[j]) pending.push(j);
+    (function step(){
+      if(token!==searchToken) return;
+      var stopAt=performance.now()+40;
+      while(pending.length&&performance.now()<stopAt){var j=pending.shift();onResult(j,scanRange(seed,base+jobs[j].off,jobs[j].count,def,TOP_N));}
+      if(pending.length) setTimeout(step,0);
+    })();
+  }
+}
+function stopSearch(){
+  searchToken++;stopWorkers();$('stopBtn').hidden=true;
+  var msg=$('searchMsg');msg.className='msg';msg.textContent='Search stopped.';
+}
+function showSearch(top,range,base,secs){
+  var msg=$('searchMsg'),res=$('searchRes');
+  if(!top.length){res.hidden=true;msg.className='msg';msg.textContent='No click in the next '+fmt(range)+' holds the veil.';return;}
+  msg.className='msg ok';msg.textContent='Searched '+fmt(range)+' clicks in '+(secs<1?Math.max(1,Math.round(secs*1000))+' ms':secs.toFixed(1)+' s')+'.';
+  var b=top[0];
+  $('bestLen').textContent=b.len+(b.len===1?' hold':' holds in a row');
+  $('bestWhere').textContent='starting at +'+fmt(b.start+1)+' (when stats show '+fmt(base+b.start)+' clicks)';
+  $('topRows').innerHTML=top.map(function(t){
+    return '<tr><td>'+t.len+'</td><td>+'+fmt(t.start+1)+'</td><td>#'+fmt(base+t.start)+'</td><td>'+fmt(t.start)+'</td></tr>';
+  }).join('');
+  res.hidden=false;
+}
+var AUTO_LIMIT=5000000;
+function queueSearch(){
+  clearTimeout(searchTimer);
+  var range=parseInt($('searchRange').value,10);
+  if(!isNaN(range)&&range>AUTO_LIMIT){
+    searchToken++;stopWorkers();$('stopBtn').hidden=true;
+    var msg=$('searchMsg');
+    msg.className='msg';msg.textContent='Press Search to scan '+fmt(range)+' clicks.';
+    return;
+  }
+  searchTimer=setTimeout(runSearch,300);
+}
+
+function applySave(raw){
+  var msg=$('loadMsg');
+  try{
+    var s=parseSave(raw);
+    state=s;
+    renderUps();render();
+    msg.className='msg ok';
+    msg.textContent='Loaded save from version '+s.version+'.';
+    try{localStorage.setItem('veilPlannerSave',raw);}catch(e){}
+  }catch(e){
+    msg.className='msg err';
+    msg.textContent=e.message;
+  }
+}
+
+$('loadBtn').addEventListener('click',function(){applySave($('saveInput').value);});
+$('fileInput').addEventListener('change',function(e){
+  var f=e.target.files&&e.target.files[0];if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){$('saveInput').value=r.result;applySave(r.result);};
+  r.readAsText(f);
+});
+$('clicksInput').addEventListener('input',function(){
+  var v=parseInt(this.value,10);
+  if(!isNaN(v)&&v>=0){state.clicks=v;render();}
+});
+Array.prototype.forEach.call(document.querySelectorAll('[data-step]'),function(b){
+  b.addEventListener('click',function(){state.clicks+=parseInt(b.getAttribute('data-step'),10);render();});
+});
+$('countSel').addEventListener('change',render);
+$('searchBtn').addEventListener('click',function(){clearTimeout(searchTimer);runSearch();});
+$('stopBtn').addEventListener('click',stopSearch);
+$('searchRange').addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(searchTimer);runSearch();}});
+
+renderUps();render();
+try{
+  var saved=localStorage.getItem('veilPlannerSave');
+  if(saved){$('saveInput').value=saved;applySave(saved);}
+}catch(e){}
+})();
+</script>
+
+</body></html>
